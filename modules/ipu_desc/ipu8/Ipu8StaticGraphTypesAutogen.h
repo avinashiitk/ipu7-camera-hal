@@ -105,10 +105,10 @@ enum class HwSink : uint8_t
     ProcessedMainSink,
     ProcessedSecondarySink,
     GmvMatchOutSink,
-    CvOutputSink,
     SegnetSecondarySink,
     PdafOutSink,
     AwbSveOutSink,
+    CvOutputSink,
     IrAeOutSink,
     IrAfStdOutSink,
     IrAwbStdOutSink,
@@ -132,12 +132,11 @@ enum class SapAttributeValues {
     ShortInputAttribute = 4,
 };
 
-enum class AdditonalFeaturesBitValues {
+enum class AdditionalFeaturesBitValues {
     None = 0,
     NntmEnableBit = 1,
     GdcEnableBit = 2,
     B2bEnableBit = 4,
-    RemosaicEnableBit = 8,
     ImvEnableBit = 16,
     CasBeforUpscaleBit = 32,
     FullLtmEnableBit = 64,
@@ -335,8 +334,8 @@ struct HwBitmaps {
 };
 
 enum class NodeTypes : uint8_t {
-    Isys,
     Cb,
+    Isys,
     Sw,
 };
 
@@ -357,10 +356,10 @@ enum class GraphElementType : uint8_t {
     ProcessedMain,
     ProcessedSecondary,
     GmvMatchOut,
-    CvOutput,
     SegnetSecondary,
     PdafOut,
     AwbSveOut,
+    CvOutput,
     IrAeOut,
     IrAfStdOut,
     IrAwbStdOut,
@@ -372,15 +371,11 @@ enum class GraphElementType : uint8_t {
     RawIsysPdaf,
     // Outer Nodes
 
-    Isys,
-
     LbffBayerNoGmvNoTnrNoSap,
 
-    SwB2b,
+    Isys,
 
     SwRemosaic,
-
-    SwAinr,
 
     SwGdc,
 
@@ -408,9 +403,13 @@ enum class GraphElementType : uint8_t {
 
     LbffBayerWithGmvWithTnrWithSap,
 
-    IsysPdaf2,
+    SwB2b,
+
+    SwAinr,
 
     LbffBayerPdaf2NoGmvNoTnrNoSap,
+
+    IsysPdaf2,
 
     LbffBayerPdaf2WithGmvNoTnrNoSap,
 
@@ -498,8 +497,6 @@ enum class GraphElementType : uint8_t {
 
     LbffDol3InputsWithGmvWithTnrWithSap,
 
-    LbffBayerPdaf2WithTnrWithSap,
-
     LbffRgbIrNoGmvNoTnrNoSap,
 
     LbffRgbIrIrNoGmvNoTnrNoSap,
@@ -539,14 +536,12 @@ enum class GraphElementType : uint8_t {
     LbffIrNoGmvWithTnrWithSap,
 
     LbffIrWithGmvWithTnrWithSap,
-
-    WithCv,
 };
 
 enum class LinkType : uint8_t {
     Source2Node,
-    Node2Node,
     Node2Sink,
+    Node2Node,
     Node2Self,
 };
 

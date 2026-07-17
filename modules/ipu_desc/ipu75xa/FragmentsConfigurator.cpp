@@ -85,12 +85,14 @@ StaticGraphStatus Gen2FragmentsConfigurator::configureFragments(std::vector<Smur
         switch (kernelRole)
         {
             case GraphResolutionConfiguratorKernelRole::DownScaler:
+            case GraphResolutionConfiguratorKernelRole::DownScalerSmall:
             {
                 res = configFragmentsDownscaler(runKernel, kernelFragments, prevKernelUuid, prevKernelFragments);
                 break;
             }
 
             case GraphResolutionConfiguratorKernelRole::EspaCropper:
+            case GraphResolutionConfiguratorKernelRole::EspaCropperSmall:
             {
                 res = configFragmentsCropper(runKernel, kernelFragments, prevKernelUuid, prevKernelFragments);
                 break;
@@ -205,6 +207,13 @@ StaticGraphStatus Gen2FragmentsConfigurator::configFragmentsDownscaler(StaticGra
 
     for (int32_t stripe = leftNonVanishedStripe; stripe <= rightNonVanishedStripe; stripe++)
     {
+        if (scaleFactor == 1.0)
+        {
+            kernelFragments[stripe].fragmentOutputWidth = kernelFragments[stripe].fragmentInputWidth;
+            _outputStartX[runKernel->kernel_uuid][stripe] = kernelFragments[stripe].fragmentStartX;
+            continue;
+        }
+
         int rightCrop = stripe == static_cast<int32_t>(_numberOfFragments - 1) ? resInfo->input_crop.right : 0;
 
         double value = (static_cast<double>(kernelFragments[stripe].fragmentInputWidth - rightCrop) * scaleFactor) / 4;
@@ -258,7 +267,7 @@ StaticGraphStatus Gen2FragmentsConfigurator::configFragmentsDownscaler(StaticGra
                 s_factor_f = floor(s_factor_f * ratio_prec) / ratio_prec;
 
                 // Update horizontal_offset_fxp and horizontal_offset_max
-                double horizontal_offset_f = (s_factor_f - 1.0) / 2.0 + (2.0 * s_factor_f * ceil(static_cast<double>(fragment_start_x / s_factor_f / 2.0)) - fragment_start_x);
+                double horizontal_offset_f = (s_factor_f - 1.0) / 2.0 + (2.0 * s_factor_f * ceil((static_cast<double>(fragment_start_x) / s_factor_f / 2.0)) - fragment_start_x);
                 double horizontal_offset_max_f = fragment_input_width - fragment_output_width * s_factor_f + s_factor_f * (1.0 + 1.0 / 128);
 
                 horizontal_offset_fxp = static_cast<int32_t>(floor(horizontal_offset_f * ratio_prec));
@@ -522,7 +531,7 @@ StaticGraphStatus Gen2FragmentsConfigurator::configFragmentsUpscaler(StaticGraph
 
     auto scaleFactorW = static_cast<double>(resInfo->input_width - resInfo->input_crop.left - resInfo->input_crop.right) / resInfo->output_width;
     auto scaleFactorH = static_cast<double>(resInfo->input_height - resInfo->input_crop.top - resInfo->input_crop.bottom) / resInfo->output_height;
-    auto scaleFactor = std::max(scaleFactorW, scaleFactorH);
+    auto scaleFactor = std::min(scaleFactorW, scaleFactorH);
 
     uint32_t upscalerWidthGranularity = 2;
     uint16_t inputUnits = 1;

@@ -666,7 +666,7 @@ TerminalDescriptor SW_AINRTerminalDesc[] =
         PAC_BUFFER_TYPE_NONE,
         TERMINAL_BUFFER_TYPE_DATA,
         TERMINAL_DIR_IN,
-        0, // ainr
+        57271, // ainr
     },
     {
         SW_AINR_TERMINAL_CONNECT_OUTPUT,
@@ -675,7 +675,7 @@ TerminalDescriptor SW_AINRTerminalDesc[] =
         PAC_BUFFER_TYPE_NONE,
         TERMINAL_BUFFER_TYPE_DATA,
         TERMINAL_DIR_OUT,
-        0, // ainr
+        57271, // ainr
     },
 };
 

@@ -73,8 +73,9 @@ enum class GraphConfigurationKeyAttributes : uint32_t
     WFov = 0x00001000,
     NFov = 0x00002000,
     DocScan = 0x00004000,
-    HighRes = 0x00008000,
+    HighRes90 = 0x00008000,
     AinrActive = 0x00010000,
+    HighRes110 = 0x00020000,
 };
 
 enum class TuningModeKeyAttributes : uint32_t
@@ -97,7 +98,8 @@ struct GraphConfigurationKey {
 };
 
 struct GraphConfigurationHeader {
-    uint32_t additonalFeaturesBit = 0;
+    uint32_t additionalFeaturesBit = 0;
+    uint8_t isIsysUnpacked = 0;
     GraphConfigurationKey settingsKey;
     uint16_t settingId = 0;
     int32_t graphId = 0;
@@ -125,8 +127,8 @@ struct SysToolVersion
 };
 
 struct BinaryHeader {
-    uint32_t additonalFeaturesBit = 0;
     uint32_t sapAttributes = 0;
+    uint32_t additionalFeaturesBit = 0;
     uint32_t binaryCommonHashCode = 0;
     uint32_t numberOfResolutions = 0;
     uint32_t numberOfSensorModes = 0;

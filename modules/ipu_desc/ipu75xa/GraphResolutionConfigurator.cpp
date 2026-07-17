@@ -720,7 +720,7 @@ StaticGraphStatus GraphResolutionConfigurator::updateRunKernelUpScaler(StaticGra
     upscalerActualInputWidth = GRA_ROUND_DOWN(upscalerActualInputWidth, stepW);
     upscalerActualInputHeight = (upscalerActualInputWidth / stepW) * stepH;
 
-    if ((upscalerActualOutputWidth / upscalerActualInputWidth) > max_upscaling)
+    if ((static_cast<double>(upscalerActualOutputWidth) / upscalerActualInputWidth) > max_upscaling)
     {
         // Perform the max possible up scaling, downscaler will adjust itself
         upscalerActualInputWidth = upscalerActualOutputWidth / max_upscaling;
@@ -1481,10 +1481,10 @@ StaticGraphStatus Gen2GraphResolutionConfigurator::getDownscalerInputRoi(const R
     double widthHistScale = _widthIn2OutScale / _sensorHorizontalScaling;
     double heightHistScale = _heightIn2OutScale / _sensorVerticalScaling;
 
-    pipeInputRoi.left = static_cast<uint32_t>(((outputLeft + _originalCropOfOutput.left) * widthHistScale) + _originaHistoryOfOutput.left);
-    pipeInputRoi.right = static_cast<uint32_t>(((outputRight + _originalCropOfOutput.right) * widthHistScale) + _originaHistoryOfOutput.right);
-    pipeInputRoi.top = static_cast<uint32_t>(((outputTop + _originalCropOfOutput.top) * heightHistScale) + _originaHistoryOfOutput.top);
-    pipeInputRoi.bottom = static_cast<uint32_t>(((outputBottom + _originalCropOfOutput.bottom) * heightHistScale) + _originaHistoryOfOutput.bottom);
+    pipeInputRoi.left = static_cast<uint32_t>(outputLeft * widthHistScale + _originaHistoryOfOutput.left);
+    pipeInputRoi.right = static_cast<uint32_t>(outputRight * widthHistScale + _originaHistoryOfOutput.right);
+    pipeInputRoi.top = static_cast<uint32_t>(outputTop * heightHistScale + _originaHistoryOfOutput.top);
+    pipeInputRoi.bottom = static_cast<uint32_t>(outputBottom * heightHistScale + _originaHistoryOfOutput.bottom);
 
     // Translate ROI on input to ROI as input to downscaler
     double scaleWidth = static_cast<double>(_downscalerRunKernel->resolution_history->input_width
@@ -1703,8 +1703,8 @@ StaticGraphStatus Gen2GraphResolutionConfigurator::updateRunKernelCropper(Static
         totalHorizontalCrop -= (_originalCropOfCropper.left + _originalCropOfCropper.right);
 
         // Calculate the crop after downscale, relatively to the desired crop before the downscale
-        cropLeft = (cropLeft + cropRight) == 0 ? 0 :
-            GRA_ROUND_DOWN(static_cast<int32_t>(GRA_ROUND(static_cast<double>(cropLeft) / (cropLeft + cropRight) * (totalHorizontalCrop))), 2);
+        cropLeft = (cropLeft + cropRight - paddingToRemove) == 0 ? 0 :
+            GRA_ROUND_DOWN(static_cast<int32_t>(GRA_ROUND(static_cast<double>(cropLeft) / (cropLeft + cropRight - paddingToRemove) * (totalHorizontalCrop))), 2);
 
         runKernel->resolution_info->input_crop.left = _originalCropOfCropper.left + cropLeft;
         runKernel->resolution_info->input_crop.right = _originalCropOfCropper.right + (totalHorizontalCrop - cropLeft) + paddingToRemove;
@@ -1761,8 +1761,8 @@ StaticGraphStatus Gen2GraphResolutionConfigurator::updateRunKernelCropper(Static
         totalVerticalCrop -= (_originalCropOfCropper.top + _originalCropOfCropper.bottom);
 
         // Calculate the crop after downscale, relatively to the desired crop before the downscale
-        cropTop = (cropTop + cropBottom) == 0 ? 0 :
-            GRA_ROUND_DOWN(static_cast<int32_t>(GRA_ROUND(static_cast<double>(cropTop) / (cropTop + cropBottom) * (totalVerticalCrop))), 2);
+        cropTop = (cropTop + cropBottom - paddingToRemove) == 0 ? 0 :
+            GRA_ROUND_DOWN(static_cast<int32_t>(GRA_ROUND(static_cast<double>(cropTop) / (cropTop + cropBottom - paddingToRemove) * (totalVerticalCrop))), 2);
 
         runKernel->resolution_info->input_crop.top = _originalCropOfCropper.top + cropTop;
         runKernel->resolution_info->input_crop.bottom = _originalCropOfCropper.bottom + (totalVerticalCrop - cropTop) + paddingToRemove;
@@ -2003,6 +2003,12 @@ StaticGraphStatus Gen2GraphResolutionConfigurator::getInputRoiForOutput(const Re
     // Now remove any scaling done by sensor itself
     widthIn2OutScale *= _sensorHorizontalScaling;
     heightIn2OutScale *= _sensorVerticalScaling;
+
+    // outputCrop was computed at history-level scale (before sensor scale); bring it into sensor space now
+    outputCrop.left = static_cast<int32_t>(outputCrop.left * _sensorHorizontalScaling);
+    outputCrop.right = static_cast<int32_t>(outputCrop.right * _sensorHorizontalScaling);
+    outputCrop.top = static_cast<int32_t>(outputCrop.top * _sensorVerticalScaling);
+    outputCrop.bottom = static_cast<int32_t>(outputCrop.bottom * _sensorVerticalScaling);
 
     if ((outputCropHist.left < _sensorHorizontalCropLeft) ||
         (outputCropHist.right < _sensorHorizontalCropRight) ||
@@ -2264,22 +2270,7 @@ StaticGraphStatus Ipu9GraphResolutionConfigurator::updateRunKernelUpScaler(Stati
     uint32_t totalCropW = roi.left + roi.right - cropperKernelCrop.left - cropperKernelCrop.right - _originalCropOfUpscaler.left - _originalCropOfUpscaler.right;
     uint32_t totalCropH = roi.top + roi.bottom - cropperKernelCrop.top - cropperKernelCrop.bottom - _originalCropOfUpscaler.top - _originalCropOfUpscaler.bottom;
 
-    // Cropping must be done in units of stepW x stepH.
-    // How many units of stepW x stepH should we crop?
-    /*uint32_t unitsW = GRA_ROUND_DOWN(totalCropW, _upscalerStepW) / _upscalerStepW;
-    uint32_t unitsH = GRA_ROUND_DOWN(totalCropH, _upscalerStepH) / _upscalerStepH;
-
-    uint32_t units = unitsW < unitsH ? unitsW : unitsH;
-
-    uint32_t actualCropW = units * _upscalerStepW;
-    uint32_t actualCropH = units * _upscalerStepH;*/
-
-    /*uint32_t deltaLeft = GRA_ROUND_DOWN((totalCropW - actualCropW) / 2, 2);
-    uint32_t deltaRight = totalCropW - actualCropW - deltaLeft;
-    uint32_t deltaTop = GRA_ROUND_DOWN((totalCropH - actualCropH) / 2, 2);
-    uint32_t deltaBottom = totalCropH - actualCropH - deltaTop;*/
-
-    // we must make sure that the scale facotr of width and height are matching. So we recalculate the extra crop to get this.
+    // We must make sure that the scale facotr of width and height are matching. So we recalculate the extra crop to get this.
     uint32_t widthAfterCrop = runKernel->resolution_info->input_width - totalCropW;
     uint32_t heightAfterCrop = runKernel->resolution_info->input_height - totalCropH;
     auto scaleFactorW = static_cast<double>(widthAfterCrop) / outputWidth;
@@ -2290,13 +2281,14 @@ StaticGraphStatus Ipu9GraphResolutionConfigurator::updateRunKernelUpScaler(Stati
         GRA_ROUND_DOWN(static_cast<uint32_t>(floor(static_cast<double>(outputWidth * scaleFactor))), 2));
     heightAfterCrop = std::min(inputHeight,
         GRA_ROUND_DOWN(static_cast<uint32_t>(floor(static_cast<double>(outputHeight * scaleFactor))), 2));
-    totalCropW = (inputWidth - widthAfterCrop)-(roi.left + roi.right - cropperKernelCrop.left - cropperKernelCrop.right - _originalCropOfUpscaler.left - _originalCropOfUpscaler.right);
-    totalCropH = (inputHeight - heightAfterCrop)-(roi.top + roi.bottom - cropperKernelCrop.top - cropperKernelCrop.bottom - _originalCropOfUpscaler.top - _originalCropOfUpscaler.bottom);
 
-    uint32_t deltaLeft = GRA_ROUND_DOWN((totalCropW) / 2, 2);
-    uint32_t deltaRight = totalCropW - deltaLeft;
-    uint32_t deltaTop = GRA_ROUND_DOWN((totalCropH) / 2, 2);
-    uint32_t deltaBottom = totalCropH - deltaTop;
+    uint32_t actualCropW = inputWidth - widthAfterCrop;
+    uint32_t actualCropH = inputHeight - heightAfterCrop;
+
+    uint32_t deltaLeft = GRA_ROUND_DOWN((totalCropW - actualCropW) / 2, 2);
+    uint32_t deltaRight = totalCropW - actualCropW - deltaLeft;
+    uint32_t deltaTop = GRA_ROUND_DOWN((totalCropH - actualCropH) / 2, 2);
+    uint32_t deltaBottom = totalCropH - actualCropH - deltaTop;
 
     runKernel->resolution_info->input_crop.left = roi.left - cropperKernelCrop.left - deltaLeft;
     runKernel->resolution_info->input_crop.right = roi.right - cropperKernelCrop.right - deltaRight;
